@@ -1,5 +1,7 @@
-import React, { useLayoutEffect, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useState } from 'react';
 import {
+  Alert,
+  PermissionsAndroid,
   Platform,
   StyleSheet,
   TouchableOpacity,
@@ -20,19 +22,52 @@ import { useNavigation } from '../hooks';
 import { useJournalStore } from '../store';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import Voice from '@react-native-voice/voice';
+
 export const JournalScreen = () => {
   const { bottom } = useSafeAreaInsets();
   const { setEntry } = useJournalStore();
   const { setOptions, goBack } = useNavigation();
   const [text, setText] = useState('');
   const [voiceModalVisible, setVoiceModalVisible] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+
+  useEffect(() => {
+    return () => {
+      Voice.destroy().then(Voice.removeAllListeners);
+    };
+  }, []);
+
+  useEffect(() => {
+    Voice.onSpeechResults = (e: any) => {
+      if (e.value && e.value.length > 0) {
+        const spokenText = e.value[0].trim();
+        if (spokenText) {
+          setText(prev => (prev ? prev + ' ' + spokenText : spokenText));
+        }
+        setIsListening(false);
+        setVoiceModalVisible(false);
+      }
+    };
+
+    Voice.onSpeechError = (e: any) => {
+      console.log('Speech error:', e.error);
+      Alert.alert('Oops', 'Couldn’t recognize your voice. Try again!');
+      setIsListening(false);
+      setVoiceModalVisible(false);
+    };
+
+    Voice.onSpeechEnd = () => {
+      setIsListening(false);
+    };
+  }, []);
 
   useLayoutEffect(() => {
     setOptions({
       header: () => (
         <Header
           onPress={() => {
-            if (text) setEntry(text);
+            if (text.trim()) setEntry(text.trim());
             goBack();
           }}
           variant="secondary"
@@ -41,10 +76,60 @@ export const JournalScreen = () => {
     });
   });
 
-  const showVoiceModal = () => setVoiceModalVisible(true);
-  const hideVoiceModal = () => setVoiceModalVisible(false);
+  const requestPermission = async () => {
+    if (Platform.OS === 'android') {
+      const granted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
+        {
+          title: 'Microphone Permission',
+          message: 'This app needs microphone access to record your voice.',
+          buttonPositive: 'OK',
+        },
+      );
+      return granted === PermissionsAndroid.RESULTS.GRANTED;
+    }
+    return true;
+  };
 
-  const handleVoiceRecord = () => setText('Voice recording started...');
+  const handleVoiceRecord = async () => {
+    if (isListening) {
+      try {
+        await Voice.stop();
+        setIsListening(false);
+      } catch (err) {
+        console.log('Stop error:', err);
+      }
+      return;
+    }
+
+    const hasPermission = await requestPermission();
+    if (!hasPermission) {
+      Alert.alert(
+        'Permission Needed',
+        'Please allow microphone access in settings.',
+      );
+      setVoiceModalVisible(false);
+      return;
+    }
+
+    try {
+      await Voice.start('en-US');
+      setIsListening(true);
+    } catch (err) {
+      console.log('Start error:', err);
+      Alert.alert('Error', 'Failed to start voice recording.');
+      setVoiceModalVisible(false);
+    }
+  };
+
+  const showVoiceModal = () => setVoiceModalVisible(true);
+  const hideVoiceModal = () => {
+    if (isListening) {
+      Voice.stop();
+      setIsListening(false);
+    }
+    setVoiceModalVisible(false);
+  };
 
   return (
     <>
@@ -62,6 +147,7 @@ export const JournalScreen = () => {
         visible={voiceModalVisible}
         onClose={hideVoiceModal}
         onPress={handleVoiceRecord}
+        isListening={isListening}
       />
     </>
   );

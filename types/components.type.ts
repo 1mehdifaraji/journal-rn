@@ -85,6 +85,7 @@ export interface VoiceRecordModalProps {
   onClose: () => void;
   onPress?: () => void;
   style?: ViewStyle;
+  isListening: boolean;
 }
 
 export interface DayItem {

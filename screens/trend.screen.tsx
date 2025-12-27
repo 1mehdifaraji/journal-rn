@@ -1,5 +1,3 @@
 import { ComingSoon } from '../components';
 
-export const TrendScreen = () => {
-  return <ComingSoon title="Trend" />;
-};
+export const TrendScreen = () => <ComingSoon title="Trend" />;

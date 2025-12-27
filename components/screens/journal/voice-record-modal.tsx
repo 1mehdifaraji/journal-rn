@@ -9,6 +9,7 @@ export const VoiceRecordModal = ({
   onClose,
   onPress = () => {},
   style,
+  isListening,
 }: VoiceRecordModalProps) => (
   <Modal
     visible={visible}
@@ -32,23 +33,21 @@ export const VoiceRecordModal = ({
             <X size={22} color="#000000b6" />
           </View>
         </TouchableOpacity>
-        <TouchableOpacity
-          activeOpacity={0.7}
-          onPress={() => {
-            onPress();
-            onClose();
-          }}
-        >
+        <TouchableOpacity activeOpacity={0.7} onPress={onPress}>
           <LinearGradient
             style={styles.mic}
-            colors={['#191324', '#330e71']}
+            colors={
+              isListening ? ['#ff3b30', '#ff9500'] : ['#191324', '#330e71']
+            }
             start={{ x: 0.7, y: 1 }}
             end={{ x: 0.7, y: 0 }}
           >
             <Mic size={32} color="#fff" />
           </LinearGradient>
         </TouchableOpacity>
-        <Typography style={styles.sheetText}>Tap to speak</Typography>
+        <Typography style={styles.sheetText}>
+          {isListening ? 'Listening… speak now' : 'Tap to speak'}
+        </Typography>
       </View>
     </View>
   </Modal>
